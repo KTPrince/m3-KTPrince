@@ -10,23 +10,20 @@ import logo from'./assets/MesoSphere.png';
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 export default function App() {
-  function formatName(user) {
-    return user.firstName + ' ' + user.lastName;
+  function formatName(aCurrUser) {
+    return aCurrUser.firstName + ' ' + aCurrUser.lastName;
   }
 
+  class user {
+    constructor(name) {
+      this.name = name;
+    }
+  }
   //TODO: Use input to store data.
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  const fadeIn = () => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 3000,
-    }).start();
-  };
+  //TODO: Change JSON storage to String storage.
 
   var clockelement;
-  var user;
+  const[currUser,setCurrUser] = useState();
 
   function tick() {
     //A react 'hook'
@@ -43,9 +40,10 @@ export default function App() {
     var clockTimeout = setTimeout(() => {
       setTime(new Date().toLocaleTimeString());
     }, 1000);
+    checkForCurrentUser();
     clockelement = 
     <div>
-        {getGreeting(user)}
+        {getGreeting()}
       <h2>
         It is {time}.
       </h2>
@@ -53,9 +51,17 @@ export default function App() {
     return clockelement;
   }
 
-  function getGreeting(user) {
-    if(user) {
-      return <h1>Hello, {formatName(user)}.</h1>;
+  async function checkForCurrentUser() {
+    let value = await getData("User Name");
+    if(currUser == null) {
+      let u = dataToUser(value);
+      setCurrUser(u);
+    }
+  }
+
+  function getGreeting() {
+    if(currUser) {
+      return <h1>Hello, {currUser.name}.</h1>;
     }
     return <h1>Hello, Stranger.</h1>;
   }
@@ -103,58 +109,73 @@ export default function App() {
     }
   }
 
+  function dataToUser(name) {
+    return new user(name);
+  }
 
+  async function saveData(dataName,value) {
+    if(await getData(dataName) === null && value !== "REMOVE_DATA") {
+      storeData(dataName,value);
+      if(dataName == "User Name") {
+        let u = dataToUser(value);
+        setCurrUser(u);
+      }
+    } else if(value !== "REMOVE_DATA") {
+      console.log("You've input: "+ value);
+      console.log("We already have a user stored! " + getData(dataName));
+    } else {
+      removeValue("User Name");
+    }
+  }
 
   function PromptUser(dataName) {
-    const handleKeyDown = (event) => {
-      if (event.key === 'Enter') {
-        console.log('do something idk');
-      }
-    }
-    const [value, onChangeText] = useState('');
-    const dataNameF = dataName.charAt(0).toUpperCase() + dataName.slice(1);
-    var textElement =
-    <div>
-      <p>
-        It looks like we don't have any data on {dataName}.
-      </p>
+    if (currUser === null) {
+      const [value, onChangeText] = useState('');
+      const dataNameF = dataName.charAt(0).toUpperCase() + dataName.slice(1);
+      var textElement =
+      <div>
+        <p>
+          It looks like we don't have any data on your {dataName}.
+        </p>
     
-      <TextInput
-        label={dataNameF}
-        value={value}
-        mode="outlined"
-        returnKeyType="next"
-        onSubmitEditing={() => {
-          
-        }}
-        onKeyDown={handleKeyDown}
-        numberOfLines={1}
-        onChangeText={(text) => onChangeText(text)}
-        style={{
-          width: '50%',
-          alignSelf: 'center',
-          marginTop: 2,
-          marginBottom: 2,
-          height: 25,
-        }}
-        theme={{ roundness: 20, colors: { primary: '#636363' } }}
-        render={(innerProps) => {
-          return (
-            <NativeTextInput
-              {...innerProps}
-              style={[
-                innerProps.style,
-                {
-                  paddingTop: 3,
-                  paddingBottom: 3,
-                  height: 20,
-                },
-              ]}
-            />
-          );
-        }}
-      />
-    </div>;
+        <TextInput
+          label={dataNameF}
+          value={value}
+          mode="outlined"
+          returnKeyType="next"
+          onSubmitEditing={() => {
+            saveData(dataName,value);
+          }}
+          numberOfLines={1}
+          onChangeText={(text) => onChangeText(text)}
+          style={{
+            width: '50%',
+            alignSelf: 'center',
+            marginTop: 2,
+            marginBottom: 2,
+            height: 25,
+          }}
+          theme={{ roundness: 20, colors: { primary: '#636363' } }}
+          render={(innerProps) => {
+            return (
+              <NativeTextInput
+                {...innerProps}
+                style={[
+                  innerProps.style,
+                  {
+                    paddingTop: 3,
+                    paddingBottom: 3,
+                    height: 20,
+                  },
+                ]}
+              />
+            );
+          }}
+        />
+      </div>;
+    } else {
+      textElement = <p>Good to see you again.</p>
+    }
     return textElement;
   }
 
@@ -163,7 +184,7 @@ return(
         <Image source={logo} style={styles.logo} />
         <Text style={styles.instructions}>
           {tick()}
-          {PromptUser('your first name')}
+          {PromptUser("User Name")}
         </Text>
   </View>
   );
