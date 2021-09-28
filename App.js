@@ -23,13 +23,19 @@ export default function App() {
   //TODO: Change JSON storage to String storage.
 
   var clockelement;
+  var reset = false;
   const[currUser,setCurrUser] = useState();
 
   function tick() {
     //A react 'hook'
     const [time, setTime] = useState(new Date().toLocaleTimeString());
     useEffect(() => {
+      if(!reset) {
         document.title = 'It is ' + time;
+      } else {
+        reset = true;
+        console.log("Skipping a frame...");
+      }
     }, [time]); //Only re-run the effect if time changes
 
     //Return statements on useEffect run as cleanup, and will run
@@ -53,7 +59,7 @@ export default function App() {
 
   async function checkForCurrentUser() {
     let value = await getData("User Name");
-    if(currUser == null) {
+    if(currUser == null && value !== null) {
       let u = dataToUser(value);
       setCurrUser(u);
     }
@@ -124,13 +130,26 @@ export default function App() {
       console.log("You've input: "+ value);
       console.log("We already have a user stored! " + getData(dataName));
     } else {
-      removeValue("User Name");
+      removeValue(dataName);
     }
   }
 
+  async function deleteAll() {
+    let keys = []
+    try {
+      keys = await AsyncStorage.getAllKeys();
+    } catch (e) {
+      //read key error
+    }
+    await AsyncStorage.multiRemove(keys);
+    setCurrUser(null);
+    reset = true;
+    console.log("All data removed.");
+  }
+  const [value, onChangeText] = useState('');
   function PromptUser(dataName) {
-    if (currUser === null) {
-      const [value, onChangeText] = useState('');
+    if (currUser == null) {
+     
       const dataNameF = dataName.charAt(0).toUpperCase() + dataName.slice(1);
       var textElement =
       <div>
@@ -179,6 +198,7 @@ export default function App() {
     return textElement;
   }
 
+if(currUser == null) {
 return(
   <View style={styles.container}>
         <Image source={logo} style={styles.logo} />
@@ -188,6 +208,23 @@ return(
         </Text>
   </View>
   );
+} else {
+  return (
+  <View style={styles.container}>
+        <Image source={logo} style={styles.logo} />
+        <Text style={styles.instructions}>
+          {tick()}
+          {PromptUser("User Name")}
+          <TouchableOpacity
+            onPress={() => deleteAll()}
+            style={styles.button}
+          >
+            <Text style={styles.buttonText}>Delete my Data</Text>
+          </TouchableOpacity>
+        </Text>
+  </View>
+  );
+}
 }
 
 const styles = StyleSheet.create({
