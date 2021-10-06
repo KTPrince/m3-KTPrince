@@ -8,54 +8,67 @@ import * as Sharing from 'expo-sharing';
 import uploadToAnonymousFilesAsync from 'anonymous-files';
 import logo from'./assets/MesoSphere.png';
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import store from './store/store';
+
+import {Provider} from 'react-redux'
+import {atom, observe} from 'elementos'
+import { useConstructor, useObservable } from "elementos-react"
+import { createInterval } from './components/interval'
+
+const createClock$ = (defaultVal) => {
+  return atom(defaultVal, {
+      actions: (set) => ({
+          update: () => set(new Date().toLocaleTimeString())
+      })
+  });
+};
 
 export default function App() {
+  //TODO: Refractor.
+  //TODO: Experiment with iOS capabilities (publish test app to app store?)
+  const clockSelf = useConstructor(({ beforeUnmount }) => {
+    const clock$ = createClock$(new Date().toLocaleTimeString());
+    const interval = createInterval(() => {
+        clock$.actions.update();
+    }, 1000);
+
+    beforeUnmount(interval.dispose);
+
+    return {
+        clock$,
+        interval
+    };
+  });
+
+const clock = useObservable(clockSelf.clock$);
+  
+  const pages = {
+    LOGIN: 0,
+    USERINFO: 1,
+    ACCOUNTPAGE: 2,
+  }
+
+  const[currPage,setCurrPage] = useState(pages.LOGIN);
+
   function formatName(aCurrUser) {
     return aCurrUser.firstName + ' ' + aCurrUser.lastName;
   }
 
   class user {
-    constructor(name) {
-      this.name = name;
+    constructor(username, firstName, lastName, DOB, bio) {
+      this.username = username;
+      this.firstName = firstName;
+      this.lastName = lastName;
+      this.DOB = DOB;
+      this.bio = bio;
     }
   }
-  //TODO: Use input to store data.
-  //TODO: Change JSON storage to String storage.
 
-  var clockelement;
+  //var clockelement;
   var reset = false;
   const[currUser,setCurrUser] = useState();
 
-  function tick() {
-    //A react 'hook'
-    const [time, setTime] = useState(new Date().toLocaleTimeString());
-    useEffect(() => {
-      if(!reset) {
-        document.title = 'It is ' + time;
-      } else {
-        reset = true;
-        console.log("Skipping a frame...");
-      }
-    }, [time]); //Only re-run the effect if time changes
-
-    //Return statements on useEffect run as cleanup, and will run
-    //After _every_ rerender.  eg return () => { console.log(hi!);};
-
     //Hooks and stuff are weird. https://docs.expo.dev/tutorial/follow-up/
-
-    var clockTimeout = setTimeout(() => {
-      setTime(new Date().toLocaleTimeString());
-    }, 1000);
-    checkForCurrentUser();
-    clockelement = 
-    <div>
-        {getGreeting()}
-      <h2>
-        It is {time}.
-      </h2>
-    </div>
-    return clockelement;
-  }
 
   async function checkForCurrentUser() {
     let value = await getData("User Name");
@@ -73,7 +86,7 @@ export default function App() {
   }
 
   function example() {
-    const [count, setCount] = useState(0);
+    //const [count, setCount] = useState(0);
 
     clockelement =
     <div>
@@ -121,14 +134,20 @@ export default function App() {
 
   async function saveData(dataName,value) {
     if(await getData(dataName) === null && value !== "REMOVE_DATA") {
-      storeData(dataName,value);
-      if(dataName == "User Name") {
-        let u = dataToUser(value);
-        setCurrUser(u);
+      if(dataName === "User Name") {
+        console.log("Running user name code...");
+        console.log("Current page: " + currPage);
+        if(await getData(value) != null) {
+          setCurrPage(pages.ACCOUNTPAGE);
+        } else {
+          setCurrPage(pages.USERINFO);
+        }
+      } else {
+        storeData(dataName,value)
       }
     } else if(value !== "REMOVE_DATA") {
       console.log("You've input: "+ value);
-      console.log("We already have a user stored! " + getData(dataName));
+      console.log("We already have this data stored! " + await getData(dataName));
     } else {
       removeValue(dataName);
     }
@@ -148,13 +167,11 @@ export default function App() {
   }
   const [value, onChangeText] = useState('');
   function PromptUser(dataName) {
-    if (currUser == null) {
-     
       const dataNameF = dataName.charAt(0).toUpperCase() + dataName.slice(1);
       var textElement =
       <div>
         <p>
-          It looks like we don't have any data on your {dataName}.
+          Please enter your {dataName}.
         </p>
     
         <TextInput
@@ -168,7 +185,7 @@ export default function App() {
           numberOfLines={1}
           onChangeText={(text) => onChangeText(text)}
           style={{
-            width: '50%',
+            width: '80%',
             alignSelf: 'center',
             marginTop: 2,
             marginBottom: 2,
@@ -184,7 +201,7 @@ export default function App() {
                   {
                     paddingTop: 3,
                     paddingBottom: 3,
-                    height: 20,
+                    height: 25,
                   },
                 ]}
               />
@@ -192,40 +209,58 @@ export default function App() {
           }}
         />
       </div>;
-    } else {
-      textElement = <p>Good to see you again.</p>
-    }
-    return textElement;
+      return textElement;
   }
 
-if(currUser == null) {
+//currPage = pages.LOGIN;
+//User login page
+if(currPage == pages.LOGIN) {
 return(
   <View style={styles.container}>
         <Image source={logo} style={styles.logo} />
-        <Text style={styles.instructions}>
-          {tick()}
-          {PromptUser("User Name")}
-        </Text>
+        <Provider store={store}>
+          <Text style={styles.instructions}>
+            {clock}
+            {PromptUser("User Name")}
+          </Text>
+        </Provider>
   </View>
   );
-} else {
+}
+//Enter additional info (if creating new account)
+if(currPage == pages.USERINFO) {
   return (
-  <View style={styles.container}>
+    <View style={styles.container}>
         <Image source={logo} style={styles.logo} />
+        <Provider store={store}>
         <Text style={styles.instructions}>
-          {tick()}
-          {PromptUser("User Name")}
-          <TouchableOpacity
-            onPress={() => deleteAll()}
-            style={styles.button}
-          >
-            <Text style={styles.buttonText}>Delete my Data</Text>
-          </TouchableOpacity>
+          Hi newbie.
         </Text>
-  </View>
+        </Provider>
+    </View>
   );
 }
+//View Account info (if account found)
+if(currPage == pages.ACCOUNTPAGE) {
+  return (
+    <View style={styles.container}>
+          <Image source={logo} style={styles.logo} />
+          <Provider store={store}>
+          <Text style={styles.instructions}>
+            {PromptUser("User Name")}
+            <TouchableOpacity
+              onPress={() => deleteAll()}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>Delete my Data</Text>
+            </TouchableOpacity>
+          </Text>
+          </Provider>
+    </View>
+    );
 }
+}
+
 
 const styles = StyleSheet.create({
   container: {
