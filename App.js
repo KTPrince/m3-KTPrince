@@ -55,12 +55,12 @@ const clock = useObservable(clockSelf.clock$);
   }
 
   class user {
-    constructor(username, firstName, lastName, DOB, bio) {
+    constructor(username, firstName, lastName, DOB, Bio) {
       this.username = username;
       this.firstName = firstName;
       this.lastName = lastName;
       this.DOB = DOB;
-      this.bio = bio;
+      this.Bio = Bio;
     }
   }
 
@@ -80,23 +80,50 @@ const clock = useObservable(clockSelf.clock$);
 
   function getGreeting() {
     if(currUser) {
-      return <h1>Hello, {currUser.name}.</h1>;
+      var textelem = 
+      <div>
+        <h1>Hello, {formatName(currUser)}.</h1>
+        <h2>I don't think it's your birthday.</h2>   //TODO: Impliment functionality
+        <h3>{currUser.Bio}</h3>
+      </div>;
+      return textelem;
     }
     return <h1>Hello, Stranger.</h1>;
   }
 
-  function example() {
-    //const [count, setCount] = useState(0);
-
-    clockelement =
-    <div>
-      <p>You clicked {count} times</p>
-      <button onClick={() => setCount(count + 1)}>
-        Click me
-      </button>
-    </div>;
-    return clockelement;
+  function newUserPrompt() {
+    return (
+      <form action="#" id = "userForm" onSubmit={() => {dataToUser(document.getElementById('firstName').value,
+      document.getElementById('lastName').value,
+      document.getElementById('DOB').value,
+      document.getElementById('Bio').value);
+      return false}} >
+      <div>
+          <label id="prompt">Looks like we don't have any information on you yet.</label> <br />
+          <input id="firstName" type="name" placeholder="Enter your first name" required/> <br />
+          <input id="lastName" type="name" placeholder="Enter your last name" required/> <br />
+          <label>Birthday:   </label><br />
+          <input id="DOB" type="date" placeholder="Enter your DOB" required/> <br />
+          <textarea 
+            id="Bio" 
+            type="text" 
+            placeholder="Enter a short biography!" 
+            cols="15"
+            rows="10"
+            required>
+          </textarea> <br />
+      </div>
+      <div>
+      <button
+              type="submit"
+            >
+              <Text>Let's go!</Text>
+            </button>
+      </div>
+      </form>
+    )
   }
+
 
   const storeData = async (key,value) => {
     try {
@@ -128,29 +155,38 @@ const clock = useObservable(clockSelf.clock$);
     }
   }
 
-  function dataToUser(name) {
-    return new user(name);
+  async function dataToUser(firstName, lastName, DOB, Bio) {
+    let username = await getData("User Name");
+    let u = new user(username, firstName, lastName, DOB, Bio);
+    storeData(username,u);
+    setCurrUser(u);
+    setCurrPage(pages.ACCOUNTPAGE);
   }
 
   async function saveData(dataName,value) {
-    if(await getData(dataName) === null && value !== "REMOVE_DATA") {
+    if(value !== "REMOVE_DATA") {
       if(dataName === "User Name") {
         console.log("Running user name code...");
         console.log("Current page: " + currPage);
         if(await getData(value) != null) {
+          reconstructUser(value);
           setCurrPage(pages.ACCOUNTPAGE);
         } else {
+          storeData(dataName,value)
           setCurrPage(pages.USERINFO);
         }
       } else {
         storeData(dataName,value)
       }
-    } else if(value !== "REMOVE_DATA") {
-      console.log("You've input: "+ value);
-      console.log("We already have this data stored! " + await getData(dataName));
     } else {
       removeValue(dataName);
     }
+  }
+
+  async function reconstructUser(username) {
+    let temp = await getData(username);
+    let u = new user(temp.username, temp.firstName, temp.lastName, temp.DOB, temp.Bio);
+    setCurrUser(u);
   }
 
   async function deleteAll() {
@@ -164,15 +200,14 @@ const clock = useObservable(clockSelf.clock$);
     setCurrUser(null);
     reset = true;
     console.log("All data removed.");
+    setCurrPage(pages.LOGIN);
   }
   const [value, onChangeText] = useState('');
   function PromptUser(dataName) {
       const dataNameF = dataName.charAt(0).toUpperCase() + dataName.slice(1);
       var textElement =
       <div>
-        <p>
           Please enter your {dataName}.
-        </p>
     
         <TextInput
           label={dataNameF}
@@ -181,11 +216,12 @@ const clock = useObservable(clockSelf.clock$);
           returnKeyType="next"
           onSubmitEditing={() => {
             saveData(dataName,value);
+            onChangeText('');
           }}
           numberOfLines={1}
           onChangeText={(text) => onChangeText(text)}
           style={{
-            width: '80%',
+            width: '50%',
             alignSelf: 'center',
             marginTop: 2,
             marginBottom: 2,
@@ -209,7 +245,7 @@ const clock = useObservable(clockSelf.clock$);
           }}
         />
       </div>;
-      return textElement;
+    return textElement;
   }
 
 //currPage = pages.LOGIN;
@@ -234,7 +270,7 @@ if(currPage == pages.USERINFO) {
         <Image source={logo} style={styles.logo} />
         <Provider store={store}>
         <Text style={styles.instructions}>
-          Hi newbie.
+          {newUserPrompt()}
         </Text>
         </Provider>
     </View>
@@ -247,7 +283,7 @@ if(currPage == pages.ACCOUNTPAGE) {
           <Image source={logo} style={styles.logo} />
           <Provider store={store}>
           <Text style={styles.instructions}>
-            {PromptUser("User Name")}
+            {getGreeting()}
             <TouchableOpacity
               onPress={() => deleteAll()}
               style={styles.button}
