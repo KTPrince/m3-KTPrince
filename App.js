@@ -83,12 +83,32 @@ const clock = useObservable(clockSelf.clock$);
       var textelem = 
       <div>
         <h1>Hello, {formatName(currUser)}.</h1>
-        <h2>I don't think it's your birthday.</h2>   //TODO: Impliment functionality
+        {dateProcess(currUser.DOB)}
         <h3>{currUser.Bio}</h3>
       </div>;
       return textelem;
     }
     return <h1>Hello, Stranger.</h1>;
+  }
+
+  function dateProcess(dateS) {
+    var dString = dateS + 'T19:00:00.000Z';
+    let d = new Date(dString);
+    var today = new Date();
+    //console.log(today.getMonth() == d.getMonth());
+    if(today.getDate() == d.getDate() && today.getMonth() == d.getMonth()) {
+      return (
+        <View>
+          <Text>{"\n"}</Text>
+          <h2>
+            HAPPY BIRTHDAY!!!! 🎉🎊🥳
+          </h2>
+        </View>
+      )
+    }
+    return (
+      <p>It's not your birthday. Same-age sandy.</p>
+    )
   }
 
   function newUserPrompt() {
@@ -189,6 +209,20 @@ const clock = useObservable(clockSelf.clock$);
     setCurrUser(u);
   }
 
+  function adminCheck() {
+    if(currUser != null && currUser.username == 'admin') {
+    return (
+      <TouchableOpacity
+      onPress={() => {deleteAll();setCurrPage(pages.LOGIN)}}
+      style={styles.button}
+    >
+      <Text style={styles.buttonText}>Delete ALL Data</Text>
+    </TouchableOpacity>
+    )
+    }
+    return;
+  }
+
   async function deleteAll() {
     let keys = []
     try {
@@ -285,11 +319,18 @@ if(currPage == pages.ACCOUNTPAGE) {
           <Text style={styles.instructions}>
             {getGreeting()}
             <TouchableOpacity
-              onPress={() => deleteAll()}
+              onPress={() => {removeValue(currUser.username);setCurrPage(pages.LOGIN)}}
               style={styles.button}
             >
               <Text style={styles.buttonText}>Delete my Data</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setCurrPage(pages.LOGIN)}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>Logout</Text>
+            </TouchableOpacity>
+            {adminCheck()}
           </Text>
           </Provider>
     </View>
@@ -323,6 +364,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 20,
+    marginLeft:20,
     backgroundColor: "blue",
     padding: 20,
     borderRadius: 5
